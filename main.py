@@ -1,13 +1,29 @@
-from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi import FastAPI, Request, HTTPException, Form, Depends, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pydantic import BaseModel
 from typing import List, Optional
 import datetime
 import database
 import uvicorn
+import os
+import secrets
 from contextlib import asynccontextmanager
 from export_excel import export_orders_to_excel_and_email
+
+security = HTTPBasic()
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get("ADMIN_USERNAME", "admin"))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get("ADMIN_PASSWORD", "admin1234"))
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -34,7 +50,7 @@ async def read_root():
         return f.read()
 
 @app.get("/admin", response_class=HTMLResponse)
-async def read_admin():
+async def read_admin(_admin: str = Depends(verify_admin)):
     with open("static/admin.html", "r", encoding="utf-8") as f:
         return f.read()
 
@@ -80,7 +96,7 @@ async def create_order(order: OrderCreate):
         conn.close()
 
 @app.get("/api/admin/orders")
-async def get_orders(status: str = 'pending'):
+async def get_orders(status: str = 'pending', _admin: str = Depends(verify_admin)):
     conn = database.get_db()
     cursor = conn.cursor()
     cursor.execute('''
@@ -98,7 +114,7 @@ class ExportRequest(BaseModel):
     mall_name: str
 
 @app.post("/api/admin/export")
-async def export_and_send(req: ExportRequest):
+async def export_and_send(req: ExportRequest, _admin: str = Depends(verify_admin)):
     try:
         result = export_orders_to_excel_and_email(req.mall_name)
         return result
@@ -113,7 +129,7 @@ class OrderUpdate(BaseModel):
     address: str
 
 @app.put("/api/admin/orders/{order_id}")
-async def update_order(order_id: int, order: OrderUpdate):
+async def update_order(order_id: int, order: OrderUpdate, _admin: str = Depends(verify_admin)):
     conn = database.get_db()
     cursor = conn.cursor()
     cursor.execute('''
@@ -124,7 +140,7 @@ async def update_order(order_id: int, order: OrderUpdate):
     return {"status": "success"}
 
 @app.delete("/api/admin/orders/{order_id}")
-async def delete_order(order_id: int):
+async def delete_order(order_id: int, _admin: str = Depends(verify_admin)):
     conn = database.get_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
@@ -143,7 +159,7 @@ class SettingsModel(BaseModel):
     cc_email: str
 
 @app.get("/api/admin/settings")
-async def get_settings():
+async def get_settings(_admin: str = Depends(verify_admin)):
     conn = database.get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM settings WHERE id = 1")
@@ -152,7 +168,7 @@ async def get_settings():
     return row
 
 @app.post("/api/admin/settings")
-async def update_settings(s: SettingsModel):
+async def update_settings(s: SettingsModel, _admin: str = Depends(verify_admin)):
     conn = database.get_db()
     cursor = conn.cursor()
     cursor.execute('''
@@ -161,6 +177,50 @@ async def update_settings(s: SettingsModel):
             receiver_name=?, receiver_email=?, cc_name=?, cc_email=?
         WHERE id = 1
     ''', (s.sender_name, s.sender_email, s.sender_password, s.receiver_name, s.receiver_email, s.cc_name, s.cc_email))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+class ProductModel(BaseModel):
+    code: str
+    name: str
+    price: int
+    is_active: int
+
+@app.get("/api/admin/products")
+async def get_all_products(_admin: str = Depends(verify_admin)):
+    conn = database.get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products")
+    products = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return products
+
+@app.post("/api/admin/products")
+async def create_product(p: ProductModel, _admin: str = Depends(verify_admin)):
+    conn = database.get_db()
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO products (code, name, price, is_active) VALUES (?, ?, ?, ?)",
+                   (p.code, p.name, p.price, p.is_active))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.put("/api/admin/products/{product_id}")
+async def update_product(product_id: int, p: ProductModel, _admin: str = Depends(verify_admin)):
+    conn = database.get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE products SET code=?, name=?, price=?, is_active=? WHERE id=?",
+                   (p.code, p.name, p.price, p.is_active, product_id))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.delete("/api/admin/products/{product_id}")
+async def delete_product(product_id: int, _admin: str = Depends(verify_admin)):
+    conn = database.get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM products WHERE id=?", (product_id,))
     conn.commit()
     conn.close()
     return {"status": "success"}

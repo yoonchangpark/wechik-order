@@ -28,9 +28,9 @@
         .input-group label { font-size: 14px; font-weight: 600; color: var(--text-muted); }
         .input-group input { border: none; background: transparent; font-size: 15px; outline: none; width: 150px; font-weight: 500;}
         
-        .btn-export { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
-        .btn-export:hover { background: var(--primary-hover); }
-        .btn-export:disabled { background: #9CA3AF; cursor: not-allowed; }
+        .btn-primary { padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-primary:disabled { background: #9CA3AF; cursor: not-allowed; }
         .content { padding: 0 30px 30px; overflow-x: auto; }
         
         .tabs { display: flex; border-bottom: 1px solid var(--border); background: #F9FAFB; }
@@ -71,10 +71,11 @@
             .header-actions { flex-direction: column; align-items: stretch; width: 100%; }
             .input-group { justify-content: space-between; }
             .input-group input { text-align: right; }
-            .btn-export { justify-content: center; width: 100%; }
+            .btn-primary { justify-content: center; width: 100%; }
             .content { padding: 0 15px 15px; }
             th, td { padding: 10px; font-size: 13px; }
             .btn-sm { padding: 5px 8px; font-size: 12px; margin-bottom: 3px; width: 100%; }
+            .tabs { flex-direction: column; }
         }
     </style>
 </head>
@@ -83,24 +84,33 @@
         <div class="tabs">
             <button class="tab-btn active" id="tab-pending" onclick="switchTab('pending')">대기중 주문</button>
             <button class="tab-btn" id="tab-exported" onclick="switchTab('exported')">발송 완료 내역</button>
+            <button class="tab-btn" id="tab-products" onclick="switchTab('products')">상품 관리</button>
         </div>
         <div class="header">
             <h1 id="header-title" style="display: flex; align-items: center; gap: 10px;">
                 <svg onclick="openSettingsModal()" style="cursor:pointer; color:#6B7280; transition:0.2s;" onmouseover="this.style.color='#111827'" onmouseout="this.style.color='#6B7280'" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 오늘의 주문 (대기중)
             </h1>
-            <div class="header-actions">
+            <div class="header-actions" id="header-actions-container">
                 <div class="input-group">
                     <label>몰명 설정</label>
                     <input type="text" id="mallNameInput" value="현대백화점 대구점" placeholder="몰명 입력">
                 </div>
-                <button class="btn-export" id="exportBtn" onclick="exportAndSend()">
+                <button class="btn-primary" id="exportBtn" onclick="exportAndSend()">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                     마감 및 메일 전송
                 </button>
             </div>
+            <div class="header-actions" id="header-actions-products" style="display: none;">
+                <button class="btn-primary" onclick="openProductModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                    새 상품 등록
+                </button>
+            </div>
         </div>
-        <div class="content">
+        
+        <!-- Orders Content -->
+        <div class="content" id="orders-content">
             <table>
                 <thead>
                     <tr>
@@ -113,17 +123,31 @@
                         <th id="th-action">관리</th>
                     </tr>
                 </thead>
-                <tbody id="orderTableBody">
-                    <!-- Orders will be loaded here -->
-                </tbody>
+                <tbody id="orderTableBody"></tbody>
             </table>
             <div id="emptyState" class="empty-state" style="display: none;">
                 발송 대기중인 주문이 없습니다.
             </div>
         </div>
+
+        <!-- Products Content -->
+        <div class="content" id="products-content" style="display: none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>상품코드</th>
+                        <th>상품명</th>
+                        <th>가격 (숫자)</th>
+                        <th>상태</th>
+                        <th>관리</th>
+                    </tr>
+                </thead>
+                <tbody id="productTableBody"></tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Edit Modal -->
+    <!-- Edit Order Modal -->
     <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">주문 정보 수정</div>
@@ -147,11 +171,41 @@
         </div>
     </div>
 
+    <!-- Product Modal -->
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header" id="productModalTitle">상품 등록</div>
+            <input type="hidden" id="editProductId">
+            <div class="form-group">
+                <label>상품코드 (예: 10000001)</label>
+                <input type="text" id="prodCode" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>상품명 (예: 위칙 세탁세제 1.5L)</label>
+                <input type="text" id="prodName" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>가격 (숫자만 입력)</label>
+                <input type="number" id="prodPrice" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>노출 상태</label>
+                <select id="prodActive" class="form-control">
+                    <option value="1">판매중 (노출)</option>
+                    <option value="0">단종/품절 (숨김)</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeProductModal()">취소</button>
+                <button class="btn-save" onclick="saveProduct()">저장</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div class="modal" id="settingsModal" style="z-index: 200;">
         <div class="modal-content" style="max-width: 600px; text-align: left;">
             <div class="modal-header">이메일 발송 설정</div>
-            
             <div style="background: #F9FAFB; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                 <h3 style="font-size: 15px; margin-bottom: 10px; color: var(--primary);">발신자 정보 (보내는 사람)</h3>
                 <div class="form-group">
@@ -169,7 +223,6 @@
                     </div>
                 </div>
             </div>
-
             <div style="background: #F9FAFB; padding: 15px; border-radius: 8px;">
                 <h3 style="font-size: 15px; margin-bottom: 10px; color: var(--info);">수신자 정보 (받는 사람)</h3>
                 <div style="display: flex; gap: 10px;">
@@ -193,7 +246,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="closeSettingsModal()">취소</button>
                 <button class="btn-save" onclick="saveSettings()">저장</button>
@@ -203,18 +255,36 @@
 
     <script>
         let currentOrders = [];
+        let currentProducts = [];
         let currentTab = 'pending';
 
         function switchTab(tab) {
             currentTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tab-${tab}`).classList.add('active');
-            loadOrders();
+            
+            document.getElementById('orders-content').style.display = tab === 'products' ? 'none' : 'block';
+            document.getElementById('products-content').style.display = tab === 'products' ? 'block' : 'none';
+            
+            document.getElementById('header-actions-container').style.display = tab === 'products' ? 'none' : 'flex';
+            document.getElementById('header-actions-products').style.display = tab === 'products' ? 'flex' : 'none';
+
+            if (tab === 'products') {
+                document.getElementById('header-title').innerHTML = `상품 관리`;
+                loadProducts();
+            } else {
+                loadOrders();
+            }
         }
 
+        /* --- Settings Logic --- */
         async function loadSettings() {
             try {
                 const res = await fetch('/api/admin/settings');
+                if(!res.ok) {
+                    if(res.status === 401) alert("인증이 필요합니다. 올바른 계정 정보로 로그인해주세요.");
+                    return;
+                }
                 const data = await res.json();
                 if(data) {
                     document.getElementById('setSenderName').value = data.sender_name || '';
@@ -229,15 +299,8 @@
                 console.error("Failed to load settings", e);
             }
         }
-
-        function openSettingsModal() {
-            document.getElementById('settingsModal').style.display = 'flex';
-        }
-
-        function closeSettingsModal() {
-            document.getElementById('settingsModal').style.display = 'none';
-        }
-
+        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
         async function saveSettings() {
             const payload = {
                 sender_name: document.getElementById('setSenderName').value.trim(),
@@ -248,7 +311,6 @@
                 cc_name: document.getElementById('setCcName').value.trim(),
                 cc_email: document.getElementById('setCcEmail').value.trim()
             };
-
             try {
                 const res = await fetch('/api/admin/settings', {
                     method: 'POST',
@@ -261,14 +323,14 @@
                 } else {
                     alert("설정 저장에 실패했습니다.");
                 }
-            } catch (e) {
-                alert("네트워크 오류가 발생했습니다.");
-            }
+            } catch (e) { alert("네트워크 오류"); }
         }
 
+        /* --- Orders Logic --- */
         async function loadOrders() {
             try {
                 const res = await fetch(`/api/admin/orders?status=${currentTab}`);
+                if(!res.ok) return;
                 currentOrders = await res.json();
                 
                 const tbody = document.getElementById('orderTableBody');
@@ -283,7 +345,7 @@
                     thAction.style.display = 'table-cell';
                     emptyState.innerText = "발송 대기중인 주문이 없습니다.";
                     document.getElementById('header-title').innerHTML = `
-                        <svg onclick="openSettingsModal()" style="cursor:pointer; color:#6B7280; transition:0.2s;" onmouseover="this.style.color='#111827'" onmouseout="this.style.color='#6B7280'" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <svg onclick="openSettingsModal()" style="cursor:pointer; color:#6B7280;" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         오늘의 주문 (대기중)
                     `;
                 } else {
@@ -291,7 +353,7 @@
                     thAction.style.display = 'none';
                     emptyState.innerText = "마감 완료된 주문이 없습니다.";
                     document.getElementById('header-title').innerHTML = `
-                        <svg onclick="openSettingsModal()" style="cursor:pointer; color:#6B7280; transition:0.2s;" onmouseover="this.style.color='#111827'" onmouseout="this.style.color='#6B7280'" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <svg onclick="openSettingsModal()" style="cursor:pointer; color:#6B7280;" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         발송 완료 내역
                     `;
                 }
@@ -305,18 +367,11 @@
                     
                     currentOrders.forEach(o => {
                         const date = new Date(o.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute:'2-digit' });
-                        
                         let actionTd = '';
                         let statusBadge = '';
-                        
                         if (currentTab === 'pending') {
                             statusBadge = `<span class="status-badge">대기중</span>`;
-                            actionTd = `
-                                <td>
-                                    <button class="btn-sm btn-edit" onclick="openEditModal(${o.id})">수정</button>
-                                    <button class="btn-sm btn-delete" onclick="deleteOrder(${o.id})">삭제</button>
-                                </td>
-                            `;
+                            actionTd = `<td><button class="btn-sm btn-edit" onclick="openEditModal(${o.id})">수정</button><button class="btn-sm btn-delete" onclick="deleteOrder(${o.id})">삭제</button></td>`;
                         } else {
                             statusBadge = `<span class="status-badge" style="background:#D1FAE5; color:#065F46;">마감완료</span>`;
                             actionTd = ``;
@@ -335,18 +390,12 @@
                         `;
                     });
                 }
-            } catch (e) {
-                console.error(e);
-                alert("주문 목록을 불러오는데 실패했습니다.");
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function exportAndSend() {
             const mallName = document.getElementById('mallNameInput').value.trim();
-            if (!mallName) {
-                alert("몰명을 입력해주세요.");
-                return;
-            }
+            if (!mallName) return alert("몰명을 입력해주세요.");
             if (!confirm(`몰명 [${mallName}] (으)로 대기중인 모든 주문을 마감하고 메일을 전송하시겠습니까?`)) return;
             
             const btn = document.getElementById('exportBtn');
@@ -360,20 +409,13 @@
                     body: JSON.stringify({ mall_name: mallName })
                 });
                 const result = await res.json();
-                
                 if (res.ok && result.status === 'success') {
                     alert("성공적으로 마감 및 전송되었습니다.");
-                    loadOrders(); // reload
-                } else {
-                    alert("오류: " + result.message);
-                }
-            } catch (e) {
-                alert("네트워크 오류가 발생했습니다.");
-            } finally {
-                btn.innerHTML = `
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    마감 및 메일 전송
-                `;
+                    loadOrders();
+                } else { alert("오류: " + result.message); }
+            } catch (e) { alert("네트워크 오류가 발생했습니다."); } 
+            finally {
+                btn.innerHTML = `<svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> 마감 및 메일 전송`;
                 btn.disabled = false;
             }
         }
@@ -387,11 +429,8 @@
             document.getElementById('editAddress').value = order.address;
             document.getElementById('editModal').style.display = 'flex';
         }
-
-        function closeModal() {
-            document.getElementById('editModal').style.display = 'none';
-        }
-
+        function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+        
         async function saveOrder() {
             const id = document.getElementById('editOrderId').value;
             const payload = {
@@ -399,41 +438,115 @@
                 contact: document.getElementById('editContact').value.trim(),
                 address: document.getElementById('editAddress').value.trim()
             };
-
-            if (!payload.customer_name || !payload.contact || !payload.address) {
-                alert("모든 필드를 입력해주세요.");
-                return;
-            }
-
+            if (!payload.customer_name || !payload.contact || !payload.address) return alert("모든 필드를 입력해주세요.");
             try {
                 const res = await fetch(`/api/admin/orders/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                if (res.ok) {
-                    closeModal();
-                    loadOrders();
-                } else {
-                    alert("수정에 실패했습니다.");
-                }
-            } catch (e) {
-                alert("네트워크 오류가 발생했습니다.");
-            }
+                if (res.ok) { closeModal(); loadOrders(); } 
+                else { alert("수정에 실패했습니다."); }
+            } catch (e) { alert("네트워크 오류"); }
         }
 
         async function deleteOrder(id) {
             if (!confirm("정말 이 주문을 삭제하시겠습니까?")) return;
             try {
                 const res = await fetch(`/api/admin/orders/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    loadOrders();
-                } else {
-                    alert("삭제에 실패했습니다.");
-                }
-            } catch (e) {
-                alert("네트워크 오류가 발생했습니다.");
+                if (res.ok) loadOrders();
+                else alert("삭제에 실패했습니다.");
+            } catch (e) { alert("네트워크 오류"); }
+        }
+
+        /* --- Product Management Logic --- */
+        async function loadProducts() {
+            try {
+                const res = await fetch('/api/admin/products');
+                if(!res.ok) return;
+                currentProducts = await res.json();
+                
+                const tbody = document.getElementById('productTableBody');
+                tbody.innerHTML = '';
+                
+                currentProducts.forEach(p => {
+                    const statusBadge = p.is_active 
+                        ? `<span class="status-badge" style="background:#D1FAE5; color:#065F46;">판매중</span>`
+                        : `<span class="status-badge" style="background:#FEE2E2; color:#B91C1C;">숨김</span>`;
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><span style="font-family: monospace;">${p.code}</span></td>
+                            <td style="font-weight: 500;">${p.name}</td>
+                            <td>${p.price.toLocaleString()}원</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <button class="btn-sm btn-edit" onclick="openProductModal(${p.id})">수정</button>
+                                <button class="btn-sm btn-delete" onclick="deleteProduct(${p.id})">삭제</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+
+        function openProductModal(id = null) {
+            if (id) {
+                const prod = currentProducts.find(p => p.id === id);
+                document.getElementById('productModalTitle').innerText = "상품 수정";
+                document.getElementById('editProductId').value = id;
+                document.getElementById('prodCode').value = prod.code;
+                document.getElementById('prodName').value = prod.name;
+                document.getElementById('prodPrice').value = prod.price;
+                document.getElementById('prodActive').value = prod.is_active;
+            } else {
+                document.getElementById('productModalTitle').innerText = "새 상품 등록";
+                document.getElementById('editProductId').value = "";
+                document.getElementById('prodCode').value = "";
+                document.getElementById('prodName').value = "";
+                document.getElementById('prodPrice').value = "";
+                document.getElementById('prodActive').value = "1";
             }
+            document.getElementById('productModal').style.display = 'flex';
+        }
+        function closeProductModal() { document.getElementById('productModal').style.display = 'none'; }
+
+        async function saveProduct() {
+            const id = document.getElementById('editProductId').value;
+            const payload = {
+                code: document.getElementById('prodCode').value.trim(),
+                name: document.getElementById('prodName').value.trim(),
+                price: parseInt(document.getElementById('prodPrice').value.trim()),
+                is_active: parseInt(document.getElementById('prodActive').value)
+            };
+
+            if (!payload.code || !payload.name || isNaN(payload.price)) return alert("모든 항목을 올바르게 입력해주세요.");
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/admin/products/${id}` : `/api/admin/products`;
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    closeProductModal();
+                    loadProducts();
+                } else {
+                    alert("저장에 실패했습니다.");
+                }
+            } catch (e) { alert("네트워크 오류"); }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm("정말 이 상품을 삭제하시겠습니까? (삭제 시 해당 상품이 포함된 과거 주문 표시에 영향을 줄 수 있으므로 가급적 '숨김' 처리를 권장합니다)")) return;
+            try {
+                const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+                if (res.ok) loadProducts();
+                else alert("삭제에 실패했습니다.");
+            } catch (e) { alert("네트워크 오류"); }
         }
 
         window.onload = () => {

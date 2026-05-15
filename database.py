@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-DB_FILE = "tablet_order.db"
+DB_FILE = os.environ.get("DB_PATH", "tablet_order.db")
 
 def get_db():
     conn = sqlite3.connect(DB_FILE)
