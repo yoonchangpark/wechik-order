@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+tablet_order.db
+배송요청_*.xlsx
+start.bat
+run_hidden.vbs
+setup_autostart.py
+read_excel.py
+excel_dump.json
